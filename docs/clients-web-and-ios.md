@@ -42,6 +42,7 @@ metric there once and both clients receive it in the JSON.
 | **Unified day (night + activity)** | `renderDay`, `dayCard` | `TodayCard` | `nights[]`, `activity*` | — |
 | **Full-page sleep report** (polysomnograph + clinical metrics + interpretation) | `openDayPage`→`sleepSection` (`tlBox` lanes from `nights[].series_t`, `hypnoSvg`) | `DayReportView`→`SleepReport`, `Polysomnograph` (Reports.swift) | `nights[].{stages_full,series,metrics}` | SleepNet |
 | **Sleep debt** (14-day card + cumulative debt / total sleep detail) | `renderSleepDebt`→`openSleepDebt` | `SleepDebtCard`→`SleepDebtDetail` | `sleep_debt`, grouped by wake date including naps | SleepNet |
+| **Oura-calibrated Readiness / Activity** (latest score + 14-day strip + contributors, lowest first; present only with the personal `export_score_params.json` from `tools/fit_export_scores.py` next to the DB) | `renderCalibrated` (empty state explains the setup) | `CalibratedScoresCard` (CalibratedScores.swift); file imported in Settings → `CalibrationSettingsSection` | `calibrated_scores.days[].{readiness,activity}`, `calibrated_scores.error` | `oura-scores` (fitted on the user's Oura export; model-free at runtime) |
 | **Day JSON export** (iOS: the open tab's section; web: the whole day — night + debt, daily stats + MET profile + workouts, and the heart-rate slots) | `openDayPage` "Export JSON" → `exportDayJson` (download) | `DayReportView` export menu → `DayExport` (copy / share sheet) | same sections as the report | — |
 | **Research export** (raw CSVs for a time window: every beat, 30 s movement, SpO2 ratio, skin temperature, on the corrected clock; README + manifest in the ZIP) | "Research export" panel → `GET /api/research-export?start&end&streams&tz` | Help & diagnostics → Research export → `ResearchExportView` (share sheet) | `oura_summary::research_export` (`build` + `to_zip`), also `oura research-export` | — |
 | **Full-page activity report** (24h MET profile + intensity metrics) | `openDayPage`→`activitySection`, `movementSvg` | `DayReportView`→`ActivityReport`, `MetProfile` (Reports.swift) | `activity_profile`, `activity_daily`, `activity` | AAD |
@@ -203,14 +204,6 @@ has no `illness`) and the ring-clock warnings (`clock.warnings`). Still iOS-only
   (`hourly_hr` is FFI-only; no `/api` endpoint yet).
 - **Symptom Radar details**: all four biomarkers with their personal band
   (`lower`/`upper`); the web lists only the flagged ones.
-
-## Known gaps (summary-only, on neither client yet)
-
-- **Oura-calibrated Readiness / Activity** (`calibrated_scores.days[]`: `readiness` /
-  `activity` with per-contributor values; `calibrated_scores.error` if the params file
-  fails to load). Computed by `oura-scores` only when `export_score_params.json`
-  (written by `tools/fit_export_scores.py`) sits next to the DB; neither `app.js` nor
-  `OuraApp.swift` renders it yet, and iOS does not ship the params file.
 
 ## Known gaps (web-only, not yet on iOS)
 

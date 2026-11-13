@@ -154,6 +154,8 @@ struct ProfileSettingsView: View {
                     if let message { Text(message).font(.footnote).foregroundStyle(Obs.ink2) }
                 }
 
+                CalibrationSettingsSection(onChanged: onSaved)
+
                 Section {
                     Toggle("Write ring data to Apple Health", isOn: Binding(
                         get: { health.enabled },

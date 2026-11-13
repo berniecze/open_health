@@ -291,6 +291,23 @@ struct UndatedNight: Codable {
     var captured_unix: Int64?; var source: String?
     var reason: String?; var recoverable: Bool?
 }
+/// One Oura-calibrated score from `calibrated_scores.days[]` (crates/oura-scores),
+/// rounded by the core; `contributors` is name → 0–100.
+struct CalibratedScore: Codable {
+    var score: Double
+    var contributors: [String: Double] = [:]
+}
+struct CalibratedDay: Codable {
+    var date: String
+    var readiness: CalibratedScore?
+    var activity: CalibratedScore?
+}
+/// Present only when `export_score_params.json` sits next to the DB.
+struct CalibratedScores: Codable {
+    var days: [CalibratedDay] = []
+    var error: String? = nil
+}
+
 struct Summary: Codable {
     var analysis_digest: String? = nil
     var analysis_version: Int? = nil
@@ -309,6 +326,8 @@ struct Summary: Codable {
     /// Model-free Symptom Radar from the shared core — same biomarkers, same shape,
     /// judged against your own baseline. Used when the torch model is not present.
     var symptoms: IllnessResult?
+    /// Oura-calibrated Readiness / Activity, when the params file is installed.
+    var calibratedScores: CalibratedScores?
     var workouts: [WorkoutSession] = []   // on-device only (not in the JSON)
     var modelErrors: [String] = []        // on-device model failures (not in the JSON)
     var error: String?
@@ -319,6 +338,7 @@ struct Summary: Codable {
         case digest, device, nights, clock, vitals, activity_profile, activity_daily, profile, cardio, fitness, error
         case symptoms
         case sleepDebt = "sleep_debt"
+        case calibratedScores = "calibrated_scores"
     }
     init() {}
     init(nights: [NightRow]) { self.nights = nights }
@@ -341,6 +361,7 @@ struct Summary: Codable {
         fitness = try? c.decodeIfPresent(Fitness.self, forKey: .fitness)
         sleepDebt = try? c.decodeIfPresent(SleepDebtSummary.self, forKey: .sleepDebt)
         symptoms = try? c.decodeIfPresent(IllnessResult.self, forKey: .symptoms)
+        calibratedScores = try? c.decodeIfPresent(CalibratedScores.self, forKey: .calibratedScores)
         error = try? c.decodeIfPresent(String.self, forKey: .error)
     }
     /// recent days (newest first) that have a movement profile.

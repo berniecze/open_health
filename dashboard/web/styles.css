@@ -1013,3 +1013,26 @@ body.page-open { overflow: hidden; }
 .research fieldset { border: 1px solid var(--line); border-radius: var(--radius-sm); display: grid; gap: 4px; padding: 8px 10px; margin: 4px 0; }
 .research legend { color: var(--muted); padding: 0 4px; }
 .research .muted { color: var(--muted); margin: 0; }
+
+/* ── Oura-calibrated readiness / activity (calibrated_scores) ─────────── */
+.panel-note { font: 10px var(--mono); color: var(--faint); }
+.cs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5); }
+.cs-col { min-width: 0; }
+.cs-title { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.cs-value { font: 560 34px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.cs-value span { font: 11px var(--mono); color: var(--faint); margin-left: 8px; }
+.cs-value.cs-good { color: var(--accent); } .cs-value.cs-fair { color: var(--text); } .cs-value.cs-low { color: var(--warn); }
+.cs-strip { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin: 10px 0 14px; }
+.cs-strip i { flex: 1; min-width: 3px; border-radius: 2px 2px 0 0; opacity: .75; }
+.cs-strip i:last-child { opacity: 1; }
+.cs-strip .cs-good, .cs-bar .cs-good { background: var(--accent); }
+.cs-strip .cs-fair, .cs-bar .cs-fair { background: var(--faint); }
+.cs-strip .cs-low, .cs-bar .cs-low { background: var(--warn); }
+.cs-contribs { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+.cs-row { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; row-gap: 3px; font-size: 12px; color: var(--muted); }
+.cs-row b { font: 540 12px var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.cs-bar { grid-column: 1 / -1; display: block; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.cs-bar i { display: block; height: 100%; }
+.cs-empty { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+.cs-empty code { font: 12px var(--mono); }
+@media (max-width: 640px) { .cs-grid { grid-template-columns: 1fr; } }

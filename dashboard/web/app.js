@@ -431,6 +431,66 @@ function renderSleepDebt(d) {
   button.addEventListener("click", () => openSleepDebt(sd)); box.append(button);
 }
 
+// Oura-calibrated Readiness / Activity (`calibrated_scores`, crates/oura-scores): a
+// model fitted on the wearer's own Oura export, computed from ring data. Present only
+// when export_score_params.json sits next to the DB. Same card as the iOS app's
+// `CalibratedScoresCard`.
+const CALIBRATED_LABEL = {
+  activity_balance: "Activity balance", body_temperature: "Body temperature",
+  hrv_balance: "HRV balance", previous_day_activity: "Previous day activity",
+  previous_night: "Previous night", recovery_index: "Recovery index",
+  resting_heart_rate: "Resting heart rate", sleep_balance: "Sleep balance",
+  meet_daily_targets: "Meet daily targets", move_every_hour: "Move every hour",
+  recovery_time: "Recovery time", stay_active: "Stay active",
+  training_frequency: "Training frequency", training_volume: "Training volume",
+};
+const scoreTone = (v) => (v >= 85 ? "good" : v >= 70 ? "fair" : "low");
+
+function calibratedColumn(title, days, key) {
+  const scored = days.filter((x) => x[key]);
+  const col = el("div", "cs-col");
+  col.append(el("div", "cs-title", title));
+  if (!scored.length) { col.append(el("p", "cs-empty", key === "readiness" ? "Needs a night of sleep." : "Needs a day of activity.")); return col; }
+  const last = scored[scored.length - 1], s = last[key];
+  col.append(el("div", `cs-value cs-${scoreTone(s.score)}`, `${s.score}<span>${esc(fmtDay(last.date))}</span>`));
+  // the last 14 calendar days with this score, oldest first; gaps stay gaps
+  const recent = scored.slice(-14);
+  const strip = el("div", "cs-strip");
+  strip.setAttribute("aria-label", `${title}, last ${recent.length} days`);
+  for (const x of recent) {
+    const v = x[key].score;
+    const bar = el("i", `cs-${scoreTone(v)}`);
+    // scores live in ~40-100; scale over that band so day-to-day change is visible
+    bar.style.height = `${Math.max(6, Math.min(100, (v - 40) / 60 * 100))}%`;
+    bar.title = `${fmtDay(x.date)}: ${v}`;
+    strip.append(bar);
+  }
+  col.append(strip);
+  const list = el("div", "cs-contribs");
+  for (const [name, v] of Object.entries(s.contributors || {}).sort((a, b) => a[1] - b[1])) {
+    list.append(el("div", "cs-row",
+      `<span>${esc(CALIBRATED_LABEL[name] || name)}</span><b>${v}</b>` +
+      `<i class="cs-bar"><i class="cs-${scoreTone(v)}" style="width:${Math.max(0, Math.min(100, v))}%"></i></i>`));
+  }
+  col.append(list);
+  return col;
+}
+
+function renderCalibrated(d) {
+  const box = $("calibrated"), cs = d.calibrated_scores;
+  box.innerHTML = "";
+  if (!cs) {
+    box.append(el("p", "cs-empty", "Fit the model on your Oura export with <code>tools/fit_export_scores.py</code>, then put <code>export_score_params.json</code> next to your <code>oura.db</code>."));
+    return;
+  }
+  if (cs.error) { box.append(el("div", "error", `Could not load the calibrated scores: ${esc(cs.error)}`)); return; }
+  const days = cs.days || [];
+  const grid = el("div", "cs-grid");
+  grid.append(calibratedColumn("Readiness", days, "readiness"), calibratedColumn("Activity", days, "activity"));
+  box.append(grid);
+  box.append(el("div", "il-foot", "Oura-calibrated estimate from ring data · lowest contributors first"));
+}
+
 // Symptom Radar: Oura's on-device illness-detection model. Traffic-light state from the
 // calibrated decision + the biomarkers (breath / lowest HR / HRV / temp) that deviate
 // from your personal baseline. See docs/algorithms/illness-detection.md.
@@ -2215,6 +2275,7 @@ async function load() {
   renderTiles(d);
   HR_QUARTER_LOAD = null;
   renderDay(d);
+  renderCalibrated(d);
   renderSleepDebt(d);
   renderIllness(d);
   renderCardio(d);

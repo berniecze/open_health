@@ -1123,6 +1123,13 @@ struct RootView: View {
                             SleepDebtCard(debt: debt) { showSleepDebt = true }
                         }
 
+                        // Oura-calibrated Readiness / Activity (needs the imported
+                        // export_score_params.json; see CalibratedScores.swift).
+                        if let calibrated = s.calibratedScores {
+                            ObsRule()
+                            CalibratedScoresCard(scores: calibrated)
+                        }
+
                         // Torch build: Oura's own illness model. Otherwise the shared
                         // core's baseline comparison over the same four biomarkers.
                         if let radar = s.symptomRadar, radar.available {
