@@ -11,6 +11,22 @@ the on-device ML models (LibTorch, `.ptl` files), which are not needed for any o
 `OuraApp/project-personal.yml` is that same spec with your own bundle id
 (`cz.michal.ouraapp`) and team.
 
+## On a fresh Mac
+
+Get the code and the build tools (Homebrew from <https://brew.sh> if missing):
+
+```bash
+git clone -b phase-1-ios-personal https://github.com/berniecze/open_health.git
+cd open_health
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+brew install xcodegen
+```
+
+`open_oura` comes in by itself as a Cargo git dependency. Your personal files are
+**not** on GitHub and are not needed to build: the calibration file is copied to the
+iPhone separately (see below).
+
 ## One-time setup
 
 1. **Xcode** (free): install it from the Mac App Store, open it once, accept the
