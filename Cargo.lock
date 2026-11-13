@@ -1369,6 +1369,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "oura-scores"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "oura-store"
 version = "0.1.0"
 dependencies = [
@@ -1385,6 +1394,7 @@ dependencies = [
  "anyhow",
  "oura-analysis",
  "oura-protocol",
+ "oura-scores",
  "oura-store",
  "rusqlite",
  "serde_json",

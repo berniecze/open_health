@@ -12,6 +12,7 @@
 //! *render* it: web `dashboard/web/app.js`, iOS `apps/ios/OuraApp/OuraApp.swift`. See
 //! `docs/clients-web-and-ios.md`.
 
+pub mod calibrated_scores;
 pub mod hourly_hr;
 pub mod research_export;
 pub mod ring_time;
@@ -2467,6 +2468,7 @@ pub fn build_summary(
     };
 
     let mut nights_json = Vec::new();
+    let mut score_inputs = calibrated_scores::Collector::default();
     let mut asleep_by_day: std::collections::BTreeMap<i64, i32> = Default::default();
     let mut incomplete_sleep_days = std::collections::BTreeSet::new();
     // (wake date, biomarkers) per night, oldest first — the Symptom Radar input.
@@ -2575,6 +2577,18 @@ pub fn build_summary(
         let night_hrv = raw_mean_hrv.map(|x| x.round());
         let night_breath = median_of(&nt.breath);
         let is_main_sleep = (nt.end_ds - nt.start_ds) >= sleep_score::MIN_BASELINE_SLEEP_DS;
+        if is_main_sleep {
+            score_inputs.add_sleep(calibrated_scores::SleepRecord {
+                wake_day: (end_unix as i64 + offset_seconds(tz)).div_euclid(86_400),
+                start_ds: nt.start_ds,
+                end_ds: nt.end_ds,
+                stages: &full_stages,
+                onset_latency_min: metrics["sol_min"].as_f64(),
+                mean_hrv: raw_mean_hrv,
+                hr_t: &nt.hr_t,
+                temps_c: &nt.temp,
+            });
+        }
         let rhr_baseline = if is_main_sleep {
             let priors: Vec<f64> = prior_main_rhr
                 .iter()
@@ -2756,6 +2770,9 @@ pub fn build_summary(
                 for (i, m) in met.iter().enumerate() {
                     let mv = m.as_f64().unwrap_or(1.0);
                     let unix = unix_s_at(*ds, *cu) + i as f64 * 60.0;
+                    if let Some(raw) = m.as_f64() {
+                        score_inputs.add_met(unix + tz * 3600.0, raw);
+                    }
                     let local = unix + tz * 3600.0;
                     let day_idx = (local / 86400.0).floor() as i64;
                     let (y, mo, dd) = civil(day_idx);
@@ -3117,6 +3134,8 @@ pub fn build_summary(
         "activity": activity,
         "activity_profile": activity_profile,
         "activity_daily": activity_daily,
+        // Oura-calibrated Readiness/Activity, when export_score_params.json is present
+        "calibrated_scores": score_inputs.to_json(db),
         "vitals": {
             "hrv": trend(&hrv_stat),
             "rhr": trend(&rhr_stat),
@@ -3619,6 +3638,64 @@ mod tests {
             .step_by(2)
             .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
             .collect()
+    }
+
+    #[test]
+    fn calibrated_scores_appear_only_with_a_params_file() {
+        let dir = std::env::temp_dir().join(format!("oura-sum-calib-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("calib.db");
+        let _ = std::fs::remove_file(&db);
+        let _ = std::fs::remove_file(calibrated_scores::params_path(&db));
+        drop(Store::open(&db).unwrap());
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        let (ds0, unix0) = (1_000_000_i64, 1_787_731_200_i64); // 2026-08-26 08:00 UTC
+        conn.execute(
+            "INSERT INTO events (serial, tag, name, ring_timestamp, body, decoded_json, captured_unix)
+             VALUES ('S1', 66, 'time_sync', ?1, X'00', ?2, ?3)",
+            rusqlite::params![ds0, format!("{{\"unix_time\":{unix0}}}"), unix0 + 7200],
+        )
+        .unwrap();
+        // two hours of light activity, starting at the anchor
+        let met = format!("{{\"met\":[{}]}}", vec!["2.0"; 120].join(","));
+        conn.execute(
+            "INSERT INTO events (serial, tag, name, ring_timestamp, body, decoded_json, captured_unix)
+             VALUES ('S1', 80, 'activity_information', ?1, X'00', ?2, ?3)",
+            rusqlite::params![ds0, met, unix0 + 7200],
+        )
+        .unwrap();
+        drop(conn);
+
+        let without = build_summary(&db, 0.0, &NoModelRunner).unwrap();
+        assert!(without["calibrated_scores"].is_null());
+
+        // intercept-only model: every contributor 80, plain average combiners
+        let contributor = |names: &[&str]| -> Value {
+            names.iter().map(|n| (n.to_string(), json!({"inputs": [], "weights": [0.0, 80.0]})))
+                .collect::<serde_json::Map<_, _>>().into()
+        };
+        let readiness = ["activity_balance", "body_temperature", "hrv_balance", "previous_day_activity",
+                         "previous_night", "recovery_index", "resting_heart_rate", "sleep_balance"];
+        let activity = ["meet_daily_targets", "move_every_hour", "recovery_time", "stay_active",
+                        "training_frequency", "training_volume"];
+        let mut r_comb = vec![1.0 / 8.0; 8];
+        r_comb.push(0.0);
+        let params = json!({
+            "version": 1, "weight_kg": 70.0, "target_kcal": 500.0, "temp_knee": 75.0,
+            "scores": {
+                "readiness": {"order": readiness, "contributors": contributor(&readiness), "combiner": r_comb},
+                "activity": {"order": activity, "contributors": contributor(&activity), "combiner": vec![1.0 / 6.0; 6]},
+            },
+        });
+        std::fs::write(calibrated_scores::params_path(&db), params.to_string()).unwrap();
+
+        let with = build_summary(&db, 0.0, &NoModelRunner).unwrap();
+        let days = with["calibrated_scores"]["days"].as_array().unwrap();
+        assert_eq!(days.len(), 1, "{}", with["calibrated_scores"]);
+        assert_eq!(days[0]["date"], "2026-08-26");
+        assert_eq!(days[0]["activity"]["score"], 80.0);
+        assert_eq!(days[0]["activity"]["contributors"]["stay_active"], 80.0);
+        assert!(days[0]["readiness"].is_null(), "no night, no readiness");
     }
 
     #[test]

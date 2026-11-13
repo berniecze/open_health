@@ -204,6 +204,14 @@ has no `illness`) and the ring-clock warnings (`clock.warnings`). Still iOS-only
 - **Symptom Radar details**: all four biomarkers with their personal band
   (`lower`/`upper`); the web lists only the flagged ones.
 
+## Known gaps (summary-only, on neither client yet)
+
+- **Oura-calibrated Readiness / Activity** (`calibrated_scores.days[]`: `readiness` /
+  `activity` with per-contributor values; `calibrated_scores.error` if the params file
+  fails to load). Computed by `oura-scores` only when `export_score_params.json`
+  (written by `tools/fit_export_scores.py`) sits next to the DB; neither `app.js` nor
+  `OuraApp.swift` renders it yet, and iOS does not ship the params file.
+
 ## Known gaps (web-only, not yet on iOS)
 
 - **One-page day view**: web shows Sleep, Activity and Heart rate on one scrolling page, every

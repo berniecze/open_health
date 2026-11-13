@@ -1,0 +1,12 @@
+[package]
+name = "oura-scores"
+description = "Oura-calibrated Readiness and Activity scores from ring-derivable daily inputs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
