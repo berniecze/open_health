@@ -1,0 +1,19 @@
+# xcodegen spec for a PERSONAL device build on a free Apple ID ("Personal Team").
+# It is the model-free project-ci.yml with only the signing identity swapped, so
+# upstream changes to project-ci.yml flow in untouched. See ../PERSONAL_INSTALL.md.
+#
+#   OURA_TEAM_ID=<your team id> xcodegen generate --spec project-personal.yml
+#
+# OURA_TEAM_ID is read from the environment so no account id is committed; left
+# unset, pick your Personal Team once under Signing & Capabilities instead (a later
+# `xcodegen generate` resets that choice).
+include:
+  - path: project-ci.yml
+
+options:
+  bundleIdPrefix: cz.michal
+
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: cz.michal.ouraapp
+    DEVELOPMENT_TEAM: "${OURA_TEAM_ID}"
